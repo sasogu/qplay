@@ -459,8 +459,10 @@
                     }
                 }
                 if (preguntaJugadorImagen) {
-                    if (pregunta.imagenUrl && pregunta.imagenUrl.trim() !== '') {
-                        preguntaJugadorImagen.src = pregunta.imagenUrl;
+                    const imagenSrc = (pregunta.imagenUrl || '').trim();
+                    // Permitir tanto URLs clásicas como data URLs en Base64 para la imagen de la pregunta
+                    if (imagenSrc !== '') {
+                        preguntaJugadorImagen.src = imagenSrc;
                         preguntaJugadorImagen.classList.remove('hidden');
                     } else {
                         preguntaJugadorImagen.src = '';

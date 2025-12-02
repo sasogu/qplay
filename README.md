@@ -41,6 +41,10 @@ QPlay es una aplicación web de código abierto para crear y jugar cuestionarios
     * Introduce tu nombre y el código de la partida proporcionado por el presentador.
     * ¡A jugar! Responde a las preguntas antes de que se acabe el tiempo.
 
+## Formato CSV
+
+Las columnas siguen el esquema `Tipo;Pregunta;R1;R2;R3;R4;Tiempo;Correcta;URL Imagen`. La columna **URL Imagen** acepta tanto enlaces clásicos `http/https` como imágenes embebidas con data URLs en Base64 (`data:image/...;base64,...`). Si no quieres mostrar ninguna imagen, deja el campo vacío.
+
 ## Autor
 
 Creado por **Juan José de Haro**.

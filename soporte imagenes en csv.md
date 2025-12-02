@@ -1,5 +1,4 @@
 
-```text
 Estás trabajando en el repositorio QPlay (https://github.com/sasogu/qplay).
 
 Objetivo general:
@@ -85,4 +84,4 @@ Resultado esperado:
   - Si está vacío → no mostrar imagen, sin errores.
 
 Por favor, realiza las modificaciones necesarias en los archivos que correspondan (principalmente `index.js`, `editor.html`, `jugador.html` u otros JavaScript implicados) y muéstrame el código final actualizado.
-```
+

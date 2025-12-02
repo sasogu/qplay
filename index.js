@@ -569,18 +569,25 @@ function mostrarPregunta() {
     if (embedEl.getAttribute('src')) embedEl.removeAttribute('src');
 
     // Mostrar imagen, vídeo de archivo o embed (YouTube/Vimeo)
-    if (pregunta.imagen_url) {
-        const url = pregunta.imagen_url.trim();
-        const embed = obtenerEmbed(url);
-        if (embed) {
-            embedEl.src = embed;
-            embedEl.classList.remove('hidden');
-        } else if (/\.(mp4|webm|ogg|mov)(\?|$)/i.test(url)) {
-            videoEl.src = url;
-            videoEl.classList.remove('hidden');
-        } else {
-            imgEl.src = url;
+    const imagenSrc = (pregunta.imagen_url || '').trim();
+    if (imagenSrc) {
+        const esDataImagen = imagenSrc.toLowerCase().startsWith('data:image/');
+        // Soporte para imágenes embebidas en Base64 mediante data URLs (data:image/...)
+        if (esDataImagen) {
+            imgEl.src = imagenSrc;
             imgEl.classList.remove('hidden');
+        } else {
+            const embed = obtenerEmbed(imagenSrc);
+            if (embed) {
+                embedEl.src = embed;
+                embedEl.classList.remove('hidden');
+            } else if (/\.(mp4|webm|ogg|mov)(\?|$)/i.test(imagenSrc)) {
+                videoEl.src = imagenSrc;
+                videoEl.classList.remove('hidden');
+            } else {
+                imgEl.src = imagenSrc;
+                imgEl.classList.remove('hidden');
+            }
         }
     }
     const respuestasGrid = document.getElementById('respuestas-grid');
