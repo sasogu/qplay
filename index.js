@@ -39,6 +39,7 @@ const langSelectorEl = document.getElementById('lang-selector'); // Referencia a
 const opcionPreguntasJugadoresEl = document.getElementById('opcion-mostrar-preguntas-jugadores');
 const opcionPuntuacionesIntermediasEl = document.getElementById('opcion-puntuaciones-intermedias');
 const FULL_DASH_ARRAY = 283;
+const RUTA_MANIFIESTO_EJEMPLOS = 'ejemplos/index.json';
 // --- Referencias de audio ---
 const controlVolumenEl = document.getElementById('control-volumen');
 const volumenSlider = document.getElementById('volumen-slider');
@@ -1179,17 +1180,40 @@ function extraerNombresCsvDelListado(listadoHtml) {
     }
 }
 
+async function obtenerNombresEjemplos() {
+    // 1) Intento con manifiesto estático para entornos sin listado de carpetas (GitHub Pages)
+    try {
+        const manifestResponse = await fetch(RUTA_MANIFIESTO_EJEMPLOS, { cache: 'no-cache' });
+        if (manifestResponse.ok) {
+            const data = await manifestResponse.json();
+            if (Array.isArray(data)) {
+                return data.filter(nombre => typeof nombre === 'string' && nombre.toLowerCase().endsWith('.csv'));
+            }
+        }
+    } catch (error) {
+        console.warn('No se pudo leer el manifiesto de ejemplos, se intentará con el listado HTML.', error);
+    }
+
+    // 2) Fallback local: listado de la carpeta (funciona en desarrollo con http.server)
+    try {
+        const response = await fetch('ejemplos/', { cache: 'no-cache' });
+        if (response.ok) {
+            const listado = await response.text();
+            return extraerNombresCsvDelListado(listado);
+        }
+    } catch (error) {
+        console.error('Error al leer la carpeta de ejemplos:', error);
+    }
+
+    return [];
+}
+
 async function cargarListaEjemplos() {
     if (!selectorEjemplosEl) return;
     prepararSelectorEjemplos();
     actualizarEstadoEjemplos('load_example_status_loading');
     try {
-        const response = await fetch('ejemplos/');
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        const listado = await response.text();
-        const nombres = extraerNombresCsvDelListado(listado);
+        const nombres = await obtenerNombresEjemplos();
         ejemplosDisponibles = nombres;
         if (!nombres.length) {
             actualizarEstadoEjemplos('load_example_status_empty');
