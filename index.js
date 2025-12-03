@@ -3,6 +3,9 @@ const pantallas = document.querySelectorAll('.pantalla');
 const cargarBtn = document.getElementById('cargar-cuestionario-btn');
 const cargarEjemploBtn = document.getElementById('cargar-ejemplo-btn');
 const fileInput = document.getElementById('csv-file-input');
+const selectorEjemplosEl = document.getElementById('selector-ejemplos');
+const estadoEjemplosEl = document.getElementById('estado-ejemplos');
+const refrescarEjemplosBtn = document.getElementById('refrescar-ejemplos-btn');
 const codigoPartidaEl = document.getElementById('codigo-partida');
 const urlSitioEl = document.getElementById('url-sitio');
 const qrCodeEl = document.getElementById('qrcode');
@@ -53,6 +56,7 @@ let jugadores = {};
 let conexiones = {};
 let respuestasRonda = {};
 let estadoJuego = 'carga';
+let ejemplosDisponibles = [];
 let preguntaActualIndex = -1;
 let temporizadorInterval;
 let tiempoRestante;
@@ -1128,6 +1132,111 @@ function gestionarDesconexionJugador(peerId) {
     guardarEstadoJuego();
 }
 
+function normalizarNombreArchivo(ruta) {
+    if (!ruta) return '';
+    return ruta.split('?')[0].split('#')[0].split('/').filter(Boolean).pop() || '';
+}
+
+function actualizarEstadoEjemplos(key) {
+    if (!estadoEjemplosEl) return;
+    if (!key) {
+        estadoEjemplosEl.textContent = '';
+        estadoEjemplosEl.removeAttribute('data-i18n-key');
+        return;
+    }
+    estadoEjemplosEl.setAttribute('data-i18n-key', key);
+    estadoEjemplosEl.textContent = t(key);
+}
+
+function prepararSelectorEjemplos() {
+    if (!selectorEjemplosEl) return;
+    selectorEjemplosEl.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    placeholder.dataset.i18nKey = 'load_example_placeholder';
+    placeholder.textContent = t('load_example_placeholder');
+    selectorEjemplosEl.appendChild(placeholder);
+    selectorEjemplosEl.disabled = true;
+}
+
+function extraerNombresCsvDelListado(listadoHtml) {
+    if (typeof DOMParser === 'undefined') return [];
+    try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(listadoHtml, 'text/html');
+        const enlaces = Array.from(doc.querySelectorAll('a'));
+        const nombres = enlaces
+            .map(enlace => enlace.getAttribute('href') || '')
+            .map(href => decodeURIComponent(href))
+            .map(normalizarNombreArchivo)
+            .filter(nombre => nombre && nombre.toLowerCase().endsWith('.csv'));
+        return Array.from(new Set(nombres));
+    } catch (error) {
+        console.error('Error al interpretar el listado de ejemplos:', error);
+        return [];
+    }
+}
+
+async function cargarListaEjemplos() {
+    if (!selectorEjemplosEl) return;
+    prepararSelectorEjemplos();
+    actualizarEstadoEjemplos('load_example_status_loading');
+    try {
+        const response = await fetch('ejemplos/');
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const listado = await response.text();
+        const nombres = extraerNombresCsvDelListado(listado);
+        ejemplosDisponibles = nombres;
+        if (!nombres.length) {
+            actualizarEstadoEjemplos('load_example_status_empty');
+            return;
+        }
+        selectorEjemplosEl.disabled = false;
+        selectorEjemplosEl.innerHTML = '';
+        nombres.forEach((nombre, index) => {
+            const option = document.createElement('option');
+            option.value = nombre;
+            option.textContent = nombre;
+            selectorEjemplosEl.appendChild(option);
+            if (index === 0) {
+                selectorEjemplosEl.value = nombre;
+            }
+        });
+        actualizarEstadoEjemplos('');
+    } catch (error) {
+        console.error('Error al cargar la lista de ejemplos:', error);
+        ejemplosDisponibles = [];
+        prepararSelectorEjemplos();
+        actualizarEstadoEjemplos('load_example_status_error');
+    }
+}
+
+function obtenerRutaEjemploSeleccionado() {
+    if (!selectorEjemplosEl || !selectorEjemplosEl.value) return null;
+    return `ejemplos/${encodeURIComponent(selectorEjemplosEl.value)}`;
+}
+
+function cargarCuestionarioDesdeUrl(url) {
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Error de red: ${response.statusText}`);
+            }
+            return response.text();
+        })
+        .then(csvText => {
+            procesarYEmpezar(csvText);
+        })
+        .catch(error => {
+            console.error('Error al cargar el cuestionario:', error);
+            alert(t('error_load_example', { message: error.message }));
+        });
+}
+
 function procesarYEmpezar(csvText) {
     const lineas = csvText.split('\n').filter(l => l.trim() !== '');
     const regex = /"([^"]*)"|([^;]+)/g;
@@ -1164,6 +1273,17 @@ function procesarYEmpezar(csvText) {
     inicializarPeer();
 }
 
+if (selectorEjemplosEl) {
+    prepararSelectorEjemplos();
+    cargarListaEjemplos();
+}
+
+if (refrescarEjemplosBtn) {
+    refrescarEjemplosBtn.addEventListener('click', () => {
+        cargarListaEjemplos();
+    });
+}
+
 if(cargarBtn) cargarBtn.addEventListener('click', () => {
     inicializarAudio();
 
@@ -1188,22 +1308,8 @@ if(cargarEjemploBtn) {
         }
         
         limpiarEstadoJuego();
-        const urlEjemplo = 'https://raw.githubusercontent.com/jjdeharo/qplay/refs/heads/main/ejemplo.csv';
-
-        fetch(urlEjemplo)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Error de red: ${response.statusText}`);
-                }
-                return response.text();
-            })
-            .then(csvText => {
-                procesarYEmpezar(csvText);
-            })
-            .catch(error => {
-                console.error('Error al cargar el cuestionario de ejemplo:', error);
-                alert(t('error_load_example', { message: error.message }));
-            });
+        const rutaEjemplo = obtenerRutaEjemploSeleccionado() || 'https://raw.githubusercontent.com/jjdeharo/qplay/refs/heads/main/ejemplo.csv';
+        cargarCuestionarioDesdeUrl(rutaEjemplo);
     });
 }
 
